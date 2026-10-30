@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup - Registrar cita | Clínica Salvador</title>
+<style>
+  :root { --azul:#0b5cab; --azul-claro:#e8f1fb; --gris:#5b6773; --borde:#d5dde5; --ok:#1e8e4e; --err:#c0392b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Segoe UI", Arial, sans-serif; background:#f4f7fa; color:#1d2a35; }
+  header { background:var(--azul); color:#fff; padding:14px 28px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { font-size:20px; margin:0; }
+  header span { font-size:13px; opacity:.9; }
+  .tag { background:#ffd54f; color:#4a3b00; font-size:12px; padding:3px 10px; border-radius:12px; font-weight:600; }
+  main { max-width:1050px; margin:24px auto; padding:0 16px; display:grid; grid-template-columns: 1.6fr 1fr; gap:20px; }
+  .card { background:#fff; border:1px solid var(--borde); border-radius:10px; padding:20px; }
+  h2 { font-size:16px; margin:0 0 14px; color:var(--azul); }
+  label { display:block; font-size:13px; color:var(--gris); margin:12px 0 4px; }
+  input, select { width:100%; padding:9px 10px; border:1px solid var(--borde); border-radius:6px; font-size:14px; }
+  .fila { display:flex; gap:10px; } .fila > * { flex:1; }
+  button { cursor:pointer; font-size:14px; border-radius:6px; border:1px solid var(--azul); padding:9px 14px; background:#fff; color:var(--azul); }
+  button.primario { background:var(--azul); color:#fff; width:100%; margin-top:16px; padding:12px; font-weight:600; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .paciente { margin-top:10px; padding:10px; border-radius:6px; background:var(--azul-claro); font-size:14px; min-height:42px; }
+  .slots { display:grid; grid-template-columns: repeat(auto-fill, minmax(78px,1fr)); gap:8px; margin-top:6px; }
+  .slot { padding:8px 0; text-align:center; }
+  .slot.ocupado { background:#eceff2; color:#98a2ab; border-color:#e0e4e8; text-decoration:line-through; }
+  .slot.sel { background:var(--azul); color:#fff; }
+  .leyenda { font-size:12px; color:var(--gris); margin-top:10px; }
+  dl { margin:0; font-size:14px; } dt { color:var(--gris); font-size:12px; margin-top:10px; } dd { margin:2px 0 0; font-weight:600; }
+  .msg { margin-top:14px; padding:12px; border-radius:6px; font-size:14px; display:none; }
+  .msg.ok { display:block; background:#e6f5ec; color:var(--ok); border:1px solid #b9e0c9; }
+  .msg.err { display:block; background:#fdecea; color:var(--err); border:1px solid #f3c1bb; }
+  @media (max-width:800px){ main { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Clínica Salvador · Recepción</h1>
+  <span><span class="tag">MOCKUP · Incremento Sprint 1</span> &nbsp; Recepcionista: Sesión activa</span>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Registrar nueva cita</h2>
+
+    <label for="doc">1. Buscar paciente por documento</label>
+    <div class="fila">
+      <input id="doc" placeholder="Ej.: 1045000111" value="1045000111">
+      <button id="btnBuscar" style="flex:0 0 100px">Buscar</button>
+    </div>
+    <div class="paciente" id="paciente">Escriba un documento y pulse Buscar.</div>
+
+    <div class="fila">
+      <div>
+        <label for="medico">2. Médico</label>
+        <select id="medico">
+          <option value="M-1">Dr. Carlos Pérez · Medicina general</option>
+          <option value="M-2">Dra. Laura Ruiz · Pediatría</option>
+        </select>
+      </div>
+      <div>
+        <label for="fecha">3. Fecha</label>
+        <input id="fecha" type="date" value="2026-11-02">
+      </div>
+    </div>
+
+    <label>4. Horario disponible (30 min)</label>
+    <div class="slots" id="slots"></div>
+    <div class="leyenda">Gris tachado = ocupado · Azul = seleccionado</div>
+
+    <button class="primario" id="btnConfirmar" disabled>Confirmar cita</button>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <aside class="card">
+    <h2>Resumen de la cita</h2>
+    <dl>
+      <dt>Paciente</dt><dd id="rPaciente">—</dd>
+      <dt>Médico</dt><dd id="rMedico">—</dd>
+      <dt>Fecha</dt><dd id="rFecha">—</dd>
+      <dt>Hora</dt><dd id="rHora">—</dd>
+      <dt>Duración</dt><dd>30 minutos</dd>
+    </dl>
+    <p class="leyenda">Reglas: el médico debe atender en ese horario, sin cruce con otras citas, y el paciente no puede tener dos citas simultáneas.</p>
+  </aside>
+</main>
+
+<script>
+  const pacientes = { "1045000111":"Ana Pérez", "1045000222":"Luis Gómez" };
+  const medicos = { "M-1":"Dr. Carlos Pérez", "M-2":"Dra. Laura Ruiz" };
+  const ocupados = { "M-1": ["09:00","10:30"], "M-2": ["08:00"] };
+  const franjas = [["08:00","12:00"],["14:00","17:00"]];
+  let paciente = null, hora = null;
+  const $ = id => document.getElementById(id);
+
+  function generarSlots() {
+    const cont = $("slots"); cont.innerHTML = ""; hora = null;
+    franjas.forEach(([ini, fin]) => {
+      let [h, m] = ini.split(":").map(Number); const [hf, mf] = fin.split(":").map(Number);
+      while (h * 60 + m + 30 <= hf * 60 + mf) {
+        const t = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+        const b = document.createElement("button");
+        b.className = "slot"; b.textContent = t;
+        if ((ocupados[$("medico").value] || []).includes(t)) { b.classList.add("ocupado"); b.disabled = true; }
+        b.onclick = () => { document.querySelectorAll(".slot").forEach(s => s.classList.remove("sel")); b.classList.add("sel"); hora = t; actualizar(); };
+        cont.appendChild(b);
+        m += 30; if (m >= 60) { h++; m -= 60; }
+      }
+    });
+    actualizar();
+  }
+  function actualizar() {
+    $("rPaciente").textContent = paciente || "—";
+    $("rMedico").textContent = medicos[$("medico").value];
+    $("rFecha").textContent = $("fecha").value || "—";
+    $("rHora").textContent = hora || "—";
+    $("btnConfirmar").disabled = !(paciente && hora && $("fecha").value);
+  }
+  $("btnBuscar").onclick = () => {
+    paciente = pacientes[$("doc").value.trim()] || null;
+    $("paciente").textContent = paciente ? "✔ Paciente encontrado: " + paciente + " · Tel. 300 111 2233" : "✖ Paciente no encontrado. Verifique el documento.";
+    actualizar();
+  };
+  $("medico").onchange = generarSlots;
+  $("fecha").onchange = generarSlots;
+  $("btnConfirmar").onclick = () => {
+    const msg = $("msg"); msg.className = "msg ok";
+    msg.textContent = "✔ Cita C-0003 registrada: " + paciente + " con " + medicos[$("medico").value] + " el " + $("fecha").value + " a las " + hora + ".";
+    $("btnConfirmar").disabled = true;
+  };
+  $("btnBuscar").click(); generarSlots();
+</script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tablero Kanban - Sprint 1 | Clínica Salvador</title>
+<style>
+  body { margin:0; font-family:"Segoe UI", Arial, sans-serif; background:#eef1f5; color:#1d2a35; }
+  header { padding:16px 24px; background:#1f2d3d; color:#fff; }
+  header h1 { margin:0; font-size:20px; } header p { margin:4px 0 0; font-size:13px; opacity:.85; }
+  .barra { padding:12px 24px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .barra button { border:1px solid #1f2d3d; background:#fff; padding:7px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+  .barra button.activo { background:#1f2d3d; color:#fff; }
+  .tablero { display:grid; grid-template-columns:repeat(5, minmax(190px,1fr)); gap:12px; padding:0 24px 20px; overflow-x:auto; }
+  .col { background:#dfe5ec; border-radius:8px; padding:10px; min-height:340px; }
+  .col h3 { margin:0 0 8px; font-size:14px; display:flex; justify-content:space-between; }
+  .wip { font-size:11px; background:#fff; border-radius:10px; padding:2px 8px; }
+  .wip.exc { background:#f5c6c0; }
+  .tarjeta { background:#fff; border-left:5px solid #888; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:13px; box-shadow:0 1px 2px rgba(0,0,0,.1); }
+  .tarjeta small { color:#5b6773; display:block; margin-top:4px; }
+  .hu1 { border-color:#0b5cab; } .hu2 { border-color:#1e8e4e; } .hu3 { border-color:#e08e0b; } .tr { border-color:#8e44ad; } .fuera { border-color:#b0b8c0; opacity:.8; }
+  .leyenda { padding:0 24px 8px; font-size:12px; display:flex; gap:14px; flex-wrap:wrap; }
+  .leyenda i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; }
+  .grafico { margin:0 24px 24px; background:#fff; border-radius:8px; padding:14px 18px; max-width:620px; }
+  .grafico h3 { margin:0 0 6px; font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Tablero Kanban · Sprint 1 · Clínica Salvador</h1>
+  <p><b>Sprint Goal:</b> el recepcionista puede registrar una nueva cita para un paciente con un médico disponible en un horario específico, sin cruces de agenda.</p>
+</header>
+
+<div class="barra">
+  <button data-d="1" class="activo">Día 1 · Sprint Planning</button>
+  <button data-d="3">Día 3 · Daily Scrum</button>
+  <button data-d="5">Día 5 · Fin del sprint</button>
+  <span id="resumen" style="margin-left:auto;font-size:13px"></span>
+</div>
+
+<div class="leyenda">
+  <span><i style="background:#0b5cab"></i>HU-01 Registrar cita</span>
+  <span><i style="background:#1e8e4e"></i>HU-02 Horarios libres</span>
+  <span><i style="background:#e08e0b"></i>HU-03 Buscar paciente</span>
+  <span><i style="background:#8e44ad"></i>Transversal</span>
+  <span><i style="background:#b0b8c0"></i>Fuera del sprint</span>
+</div>
+
+<div class="tablero" id="tablero"></div>
+
+<div class="grafico">
+  <h3>Burndown del Sprint (horas restantes)</h3>
+  <svg viewBox="0 0 560 200" width="100%" role="img" aria-label="Burndown">
+    <line x1="40" y1="170" x2="540" y2="170" stroke="#999"/><line x1="40" y1="20" x2="40" y2="170" stroke="#999"/>
+    <polyline fill="none" stroke="#b0b8c0" stroke-dasharray="6 4" stroke-width="2" points="40,20 140,47 240,74 340,101 440,128 540,170"/>
+    <polyline fill="none" stroke="#0b5cab" stroke-width="3" points="40,20 140,29 240,38 340,57 440,92 540,170"/>
+    <g font-size="11" fill="#555"><text x="34" y="185">0</text><text x="130" y="185">D1</text><text x="230" y="185">D2</text><text x="330" y="185">D3</text><text x="430" y="185">D4</text><text x="530" y="185">D5</text><text x="2" y="24">34 h</text></g>
+    <g font-size="11"><text x="360" y="40" fill="#b0b8c0">— — ideal</text><text x="360" y="56" fill="#0b5cab">━━ real</text></g>
+  </svg>
+</div>
+
+<script>
+  const columnas = [
+    { id:"pb", titulo:"Product Backlog", wip:null },
+    { id:"todo", titulo:"Por hacer (Sprint Backlog)", wip:null },
+    { id:"doing", titulo:"En progreso", wip:3 },
+    { id:"review", titulo:"En revisión", wip:2 },
+    { id:"done", titulo:"Hecho", wip:null }
+  ];
+  const tareas = {
+    "T-01":["hu1","Modelar dominio (Paciente, Médico, Franja, Cita)","Dev 1 · 4 h"],
+    "T-02":["hu1","Repositorios (interfaces + memoria)","Dev 2 · 3 h"],
+    "T-03":["hu1","Servicio registrarCita + validaciones","Dev 1 · 6 h"],
+    "T-04":["hu1","Pruebas unitarias HU-01","Dev 3 · 5 h"],
+    "T-05":["hu2","Método horariosLibres","Dev 2 · 4 h"],
+    "T-06":["hu2","Pruebas unitarias HU-02","Dev 3 · 2 h"],
+    "T-07":["hu3","Buscar paciente por documento","Dev 2 · 1 h"],
+    "T-08":["hu3","Demo de consola (Main)","Dev 3 · 2 h"],
+    "T-09":["tr","Mockup de la pantalla Registrar cita","Dev 1 · 4 h"],
+    "T-10":["tr","Documentación y guion del video","Todos · 3 h"],
+    "PB-04":["fuera","HU-04 Cancelar cita","3 pts"],
+    "PB-05":["fuera","HU-05 Reprogramar cita","5 pts"],
+    "PB-06":["fuera","HU-06 Recordatorio por WhatsApp","8 pts"],
+    "PB-07":["fuera","HU-07 Reporte de citas por médico","5 pts"],
+    "PB-08":["fuera","HU-08 Inicio de sesión del recepcionista","5 pts"]
+  };
+  const backlog = ["PB-04","PB-05","PB-06","PB-07","PB-08"];
+  const estados = {
+    1:{ todo:["T-01","T-02","T-03","T-04","T-05","T-06","T-07","T-08","T-09","T-10"], doing:[], review:[], done:[], horas:34 },
+    3:{ todo:["T-06","T-08","T-10"], doing:["T-04","T-05","T-09"], review:["T-03"], done:["T-01","T-02","T-07"], horas:22 },
+    5:{ todo:[], doing:[], review:[], done:["T-01","T-02","T-03","T-04","T-05","T-06","T-07","T-08","T-09","T-10"], horas:0 }
+  };
+  function pintar(dia) {
+    const e = estados[dia]; const cont = document.getElementById("tablero"); cont.innerHTML = "";
+    columnas.forEach(c => {
+      const ids = c.id === "pb" ? backlog : e[c.id];
+      const col = document.createElement("div"); col.className = "col";
+      const exc = c.wip !== null && ids.length > c.wip;
+      col.innerHTML = "<h3>" + c.titulo + "<span class='wip" + (exc ? " exc" : "") + "'>" + ids.length + (c.wip !== null ? " / WIP " + c.wip : "") + "</span></h3>";
+      ids.forEach(id => {
+        const [tipo, texto, info] = tareas[id];
+        const t = document.createElement("div"); t.className = "tarjeta " + tipo;
+        t.innerHTML = "<b>" + id + "</b> " + texto + "<small>" + info + "</small>";
+        col.appendChild(t);
+      });
+      cont.appendChild(col);
+    });
+    document.getElementById("resumen").textContent = "Horas restantes: " + e.horas + " h · Tareas hechas: " + e.done.length + "/10";
+  }
+  document.querySelectorAll(".barra button").forEach(b => b.onclick = () => {
+    document.querySelectorAll(".barra button").forEach(x => x.classList.remove("activo"));
+    b.classList.add("activo"); pintar(Number(b.dataset.d));
+  });
+  pintar(1);
+</script>
+</body>
+</html>
